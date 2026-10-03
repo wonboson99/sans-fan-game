@@ -1,0 +1,363 @@
+// obj_battle_manager Step event
+
+// F4 / F11: 전체 화면
+if (keyboard_check_pressed(vk_f4) || keyboard_check_pressed(vk_f11)) {
+    window_set_fullscreen(!window_get_fullscreen());
+}
+
+// ------------------------------------------------------
+// 1. 배틀박스 목표 크기 설정 및 보간 (Lerp)
+// ------------------------------------------------------
+var _target_left, _target_right, _target_top, _target_bottom;
+
+if (global.fight_active) {
+    _target_left   = 320 - (562 / 2);
+    _target_right  = 320 + (562 / 2);
+    _target_top    = 295 - (128 / 2);
+    _target_bottom = 295 + (128 / 2);
+} else if (global.menu_select >= 0 && global.menu_state > 0) {
+    _target_left   = 320 - 250;
+    _target_right  = 320 + 250;
+    _target_top    = 295 - 70;
+    _target_bottom = 295 + 70;
+} else {
+    _target_left   = 320 - 70;
+    _target_right  = 320 + 70;
+    _target_top    = 295 - 70;
+    _target_bottom = 295 + 70;
+}
+
+global.box_left   = lerp(global.box_left,   _target_left,   0.2);
+global.box_right  = lerp(global.box_right,  _target_right,  0.2);
+global.box_top    = lerp(global.box_top,    _target_top,    0.2);
+global.box_bottom = lerp(global.box_bottom, _target_bottom, 0.2);
+
+// ------------------------------------------------------
+// 2. 공격 바 스프라이트 스케일 계산
+// ------------------------------------------------------
+var _box_w = global.box_right - global.box_left;
+var _box_h = global.box_bottom - global.box_top;
+
+var _target_scale_x = max(0.1, (_box_w - 12) / sprite_get_width(spr_fight_bg));
+var _target_scale_y = max(0.1, (_box_h - 12) / sprite_get_height(spr_fight_bg));
+
+if (!variable_global_exists("fight_bg_xscale")) global.fight_bg_xscale = 1;
+if (!variable_global_exists("fight_bg_yscale")) global.fight_bg_yscale = 1;
+
+global.fight_bg_xscale = lerp(global.fight_bg_xscale, _target_scale_x, 0.2);
+global.fight_bg_yscale = lerp(global.fight_bg_yscale, _target_scale_y, 0.2);
+
+// ------------------------------------------------------
+// 3. 메인 전투 상태 제어
+// ------------------------------------------------------
+if (global.fight_active) {
+    var _half_w = sprite_get_width(spr_fight_bg) / 2;
+    var _right_x = global.fight_center_x + _half_w;
+
+    if (!global.fight_stopped) {
+        global.fight_cursor_x += 8;
+
+        if (global.fight_cursor_x > _right_x) {
+            global.fight_damage = 0;
+            global.fight_stopped = true;
+            alarm[2] = 30;
+        }
+
+        if (keyboard_check_pressed(ord("Z")) || keyboard_check_pressed(vk_enter)) {
+            var _dist = abs(global.fight_cursor_x - global.fight_center_x);
+            var _ratio = 1 - (_dist / _half_w);
+            global.fight_damage = floor(_ratio * 100);
+            global.enemy_hp = max(0, global.enemy_hp - global.fight_damage);
+            global.fight_stopped = true;
+            alarm[2] = 45;
+        }
+    }
+}
+else if (global.menu_select == -1) {
+    global.attack_timer += 1;
+    var _t = global.attack_timer;
+
+    if (global.turn == 1) {
+        // 턴 1: 뼈 터널 + 파랑
+        if (global.turn mod 2 == 1) {
+            if (!global.blue_drop) {
+                if (_t >= 30 && _t < 200 && _t % 4 == 0) {
+                    var _wave_center = mean(global.box_top, global.box_bottom) + sin(_t * 0.08) * 30;
+                    var _gap = 30;
+
+                    var _top_bone = instance_create_layer(global.box_right + 30, 0, "Instances", obj_bone);
+                    _top_bone.is_top = true;
+                    _top_bone.length = max(0, (_wave_center - (_gap / 2)) - global.box_top);
+
+                    var _bottom_bone = instance_create_layer(global.box_right + 30, 0, "Instances", obj_bone);
+                    _bottom_bone.is_top = false;
+                    _bottom_bone.length = max(0, global.box_bottom - (_wave_center + (_gap / 2)));
+                }
+            }
+            else {
+                if (_t >= 40 && _t < 210 && _t % 40 == 0) {
+                    var _b = instance_create_layer(global.box_right + 30, 0, "Instances", obj_bone);
+                    _b.is_top = false;
+                    _b.length = 30;
+                }
+
+                var _by = global.box_top + 65;
+
+                if (_t == 100) {
+                    var _bl1 = spawn_blaster(-60, _by, 100, _by, 0);
+                    var _bl2 = spawn_blaster(700, _by, 540, _by, 180);
+                    _bl1.fire_time = 100;
+                    _bl2.fire_time = 100;
+                }
+            }
+        }
+    }
+    else if (global.turn == 2) {
+        // 턴 2: 기존 패턴 유지
+        if (global.turn mod 2 == 0) {
+            var _bs = 300;
+
+            if (_t < _bs) {
+                global.soul_mode = 0;
+
+                if (_t >= 30 && _t < _bs - 20 && _t % 30 == 0) {
+                    var _gc = irandom_range(global.box_top + 40, global.box_bottom - 40);
+                    var _gap2 = 52;
+
+                    var _tb = instance_create_layer(global.box_right + 30, 0, "Instances", obj_bone);
+                    _tb.is_top = true;
+                    _tb.length = max(0, (_gc - (_gap2 / 2)) - global.box_top);
+
+                    var _bb = instance_create_layer(global.box_right + 30, 0, "Instances", obj_bone);
+                    _bb.is_top = false;
+                    _bb.length = max(0, global.box_bottom - (_gc + (_gap2 / 2)));
+                }
+
+                if ((_t == 80 || _t == 160 || _t == 230) && instance_exists(obj_player)) {
+                    var _px = obj_player.x;
+                    var _bl = spawn_blaster(_px, -60, _px, 110, 270);
+                    _bl.fire_time = 40;
+                }
+            }
+            else {
+                global.soul_mode = 1;
+
+                var _bt = _t - _bs;
+
+                if (_bt < 350 && _bt % 70 == 0) {
+                    with (obj_bonefield) instance_destroy();
+                    change_gravity(irandom(3));
+                }
+
+                if (_bt < 350 && _bt % 70 == 25) {
+                    var _bf = instance_create_layer(0, 0, "Instances", obj_bonefield);
+                    _bf.dir = global.grav_dir;
+                }
+            }
+        }
+    }
+    else if (global.turn == 3) {
+        // 턴 3: 뼈 회오리 + 추적 블래스터
+        global.soul_mode = 1;
+
+        // 0~180 프레임: 중앙에서 회전형 뼈 생성
+        if (_t < 180) {
+            if (_t % 18 == 0) {
+                var _cx = (global.box_left + global.box_right) / 2;
+                var _cy = (global.box_top + global.box_bottom) / 2;
+                var _ang = (_t / 18) * 22.5;
+                var _count = 7;
+
+                for (var i = 0; i < _count; i++) {
+                    var _b = instance_create_layer(_cx, _cy, "Instances", obj_bone);
+                    _b.length = 140;
+                    _b.is_top = false;
+                    _b.image_angle = _ang + i * 45;
+                    _b.spin = 1.2 + (i * 0.05);
+                    _b.x = _cx + lengthdir_x(110, _ang + i * 45);
+                    _b.y = _cy + lengthdir_y(110, _ang + i * 45);
+                }
+            }
+        }
+
+        // 100프레임 근처마다 추적 블래스터
+        if (_t % 70 == 30 && instance_exists(obj_player)) {
+            var _p = obj_player;
+            var _bl = spawn_blaster(_p.x, _p.y - 50, _p.x, _p.y, 270);
+            _bl.fire_time = 68;
+            _bl.beam_len = 800;
+        }
+    }
+    else if (global.turn == 4) {
+        // 턴 4: 양쪽 뼈 벽 + 교차 블래스터
+        global.soul_mode = 0;
+
+        if (_t < 110) {
+            // 좌우에서 뼈 생성
+            if (_t % 18 == 0) {
+                var _left = instance_create_layer(global.box_left - 30, 0, "Instances", obj_bone);
+                _left.is_top = true;
+                _left.length = 90;
+                _left.image_xscale = 1;
+
+                var _right = instance_create_layer(global.box_right + 30, 0, "Instances", obj_bone);
+                _right.is_top = false;
+                _right.length = 90;
+                _right.image_xscale = 1;
+            }
+
+            // 중앙에서 점점 새는 블래스터
+            if (_t == 40 || _t == 80 || _t == 120) {
+                var _mid = (global.box_left + global.box_right) / 2;
+                var _bl1 = spawn_blaster(_mid - 80, global.box_top - 30, _mid - 80, global.box_bottom + 30, 90);
+                var _bl2 = spawn_blaster(_mid + 80, global.box_top - 30, _mid + 80, global.box_bottom + 30, 90);
+                _bl1.fire_time = 44;
+                _bl2.fire_time = 44;
+            }
+        }
+        else {
+            // 이후에는 파란 모드 + 중력 반전
+            if (_t % 55 == 0) {
+                with (obj_bonefield) instance_destroy();
+                change_gravity(irandom(3));
+
+                var _bf = instance_create_layer(0, 0, "Instances", obj_bonefield);
+                _bf.dir = global.grav_dir;
+            }
+        }
+    }
+    else {
+        // 5턴 이상은 기본 패턴 반복
+        if (global.turn mod 2 == 1) {
+            if (!global.blue_drop) {
+                if (_t >= 30 && _t < 200 && _t % 5 == 0) {
+                    var _wave_center = mean(global.box_top, global.box_bottom) + sin(_t * 0.1) * 35;
+                    var _gap = 28;
+                    var _top_bone = instance_create_layer(global.box_right + 30, 0, "Instances", obj_bone);
+                    _top_bone.is_top = true;
+                    _top_bone.length = max(0, (_wave_center - (_gap / 2)) - global.box_top);
+                    var _bottom_bone = instance_create_layer(global.box_right + 30, 0, "Instances", obj_bone);
+                    _bottom_bone.is_top = false;
+                    _bottom_bone.length = max(0, global.box_bottom - (_wave_center + (_gap / 2)));
+                }
+            }
+        }
+        else {
+            if (_t % 45 == 0 && instance_exists(obj_player)) {
+                var _p = obj_player;
+                var _b = spawn_blaster(_p.x, -60, _p.x, 110, 270);
+                _b.fire_time = 50;
+            }
+        }
+    }
+}
+else {
+    // ================= 메뉴 =================
+    var _btn_x = [32, 185, 345, 500];
+    var _btn_y = 432;
+    var _confirm = keyboard_check_pressed(ord("Z")) || keyboard_check_pressed(vk_enter);
+    var _cancel  = keyboard_check_pressed(ord("X")) || keyboard_check_pressed(vk_shift);
+    var _ms = global.menu_state;
+
+    if (_ms == 0) {
+        // 메인 메뉴
+        if (keyboard_check_pressed(vk_right) || keyboard_check_pressed(ord("D"))) {
+            global.menu_select = (global.menu_select + 1) % 4;
+        }
+        if (keyboard_check_pressed(vk_left) || keyboard_check_pressed(ord("A"))) {
+            global.menu_select = (global.menu_select + 3) % 4;
+        }
+
+        if (instance_exists(obj_player)) {
+            obj_player.visible = true;
+            obj_player.x = _btn_x[global.menu_select] + 16;
+            obj_player.y = _btn_y + 21;
+        }
+
+        if (_confirm) {
+            if (global.menu_select == 0) {
+                global.fight_active = true;
+                global.fight_stopped = false;
+                global.fight_cursor_x = global.fight_center_x - sprite_get_width(spr_fight_bg) / 2;
+                global.fight_damage = 0;
+                if (instance_exists(obj_player)) obj_player.visible = false;
+            }
+            else {
+                global.menu_state = global.menu_select;
+                global.sub_select = 0;
+            }
+        }
+    }
+    else if (_ms == 4) {
+        // 결과 문장
+        if (instance_exists(obj_player)) obj_player.visible = false;
+
+        if (_confirm) {
+            if (global.msg_end) game_end();
+            else start_enemy_turn();
+        }
+    }
+    else {
+        // ACT / ITEM / MERCY 목록
+        var _count = 0;
+        if (_ms == 1) _count = array_length(global.act_names);
+        else if (_ms == 2) _count = array_length(global.item_names);
+        else if (_ms == 3) _count = array_length(global.mercy_names);
+
+        if (_count > 0) {
+            if (keyboard_check_pressed(vk_down) || keyboard_check_pressed(ord("S"))) {
+                global.sub_select = (global.sub_select + 1) % _count;
+            }
+            if (keyboard_check_pressed(vk_up) || keyboard_check_pressed(ord("W"))) {
+                global.sub_select = (global.sub_select + _count - 1) % _count;
+            }
+        }
+
+        if (instance_exists(obj_player)) {
+            obj_player.visible = true;
+            obj_player.x = global.box_left + 30;
+            obj_player.y = global.box_top + 32 + global.sub_select * 36;
+        }
+
+        if (_cancel || (_confirm && _count == 0)) {
+            global.menu_state = 0;
+        }
+        else if (_confirm) {
+            var _sel = global.sub_select;
+
+            if (_ms == 1) {
+                if (_sel == 0) {
+                    global.msg = "SANS - ATK 1 DEF 1\n* The easiest enemy. Can only deal 1 damage.";
+                } else {
+                    global.talk_count += 1;
+                    if (global.talk_count >= 2) global.msg = "Sans seems tired.\n* He might spare you now.";
+                    else global.msg = "You talked to Sans.\n* He just keeps grinning.";
+                }
+            }
+            else if (_ms == 2) {
+                var _heal = global.item_heal[_sel];
+                var _name = global.item_names[_sel];
+                global.hp_current = min(global.hp_max, global.hp_current + _heal);
+                global.msg = "You ate the " + _name + ".\n* You recovered " + string(_heal) + " HP!";
+                array_delete(global.item_names, _sel, 1);
+                array_delete(global.item_heal, _sel, 1);
+            }
+            else if (_ms == 3) {
+                if (_sel == 0) {
+                    if (global.talk_count >= 2) {
+                        global.msg = "Sans spared you.\n* The battle is over.";
+                        global.msg_end = true;
+                    } else {
+                        global.msg = "Sans isn't ready to spare you.";
+                    }
+                } else {
+                    global.msg = "You can't escape!";
+                }
+            }
+
+            global.menu_state = 4;
+            global.sub_select = 0;
+        }
+    }
+}
+
