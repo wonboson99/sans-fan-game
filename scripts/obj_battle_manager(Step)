@@ -1,5 +1,3 @@
-// obj_battle_manager Step event
-
 // F4 / F11: 전체 화면
 if (keyboard_check_pressed(vk_f4) || keyboard_check_pressed(vk_f11)) {
     window_set_fullscreen(!window_get_fullscreen());
@@ -77,176 +75,81 @@ else if (global.menu_select == -1) {
     global.attack_timer += 1;
     var _t = global.attack_timer;
 
-    if (global.turn == 1) {
-        // 턴 1: 뼈 터널 + 파랑
-        if (global.turn mod 2 == 1) {
-            if (!global.blue_drop) {
-                if (_t >= 30 && _t < 200 && _t % 4 == 0) {
-                    var _wave_center = mean(global.box_top, global.box_bottom) + sin(_t * 0.08) * 30;
-                    var _gap = 30;
+    if (global.turn mod 2 == 1) {
+        // ========== 홀수 턴: 뼈 터널 -> 파랑 + 블래스터 ==========
+        if (!global.blue_drop) {
+            if (_t >= 30 && _t < 200 && _t % 4 == 0) {
+                var _wave_center = mean(global.box_top, global.box_bottom) + sin(_t * 0.08) * 30;
+                var _gap = 30;
 
-                    var _top_bone = instance_create_layer(global.box_right + 30, 0, "Instances", obj_bone);
-                    _top_bone.is_top = true;
-                    _top_bone.length = max(0, (_wave_center - (_gap / 2)) - global.box_top);
+                var _top_bone = instance_create_layer(global.box_right + 30, 0, "Instances", obj_bone);
+                _top_bone.is_top = true;
+                _top_bone.length = max(0, (_wave_center - (_gap / 2)) - global.box_top);
 
-                    var _bottom_bone = instance_create_layer(global.box_right + 30, 0, "Instances", obj_bone);
-                    _bottom_bone.is_top = false;
-                    _bottom_bone.length = max(0, global.box_bottom - (_wave_center + (_gap / 2)));
-                }
-            }
-            else {
-                if (_t >= 40 && _t < 210 && _t % 40 == 0) {
-                    var _b = instance_create_layer(global.box_right + 30, 0, "Instances", obj_bone);
-                    _b.is_top = false;
-                    _b.length = 30;
-                }
-
-                var _by = global.box_top + 65;
-
-                if (_t == 100) {
-                    var _bl1 = spawn_blaster(-60, _by, 100, _by, 0);
-                    var _bl2 = spawn_blaster(700, _by, 540, _by, 180);
-                    _bl1.fire_time = 100;
-                    _bl2.fire_time = 100;
-                }
-            }
-        }
-    }
-    else if (global.turn == 2) {
-        // 턴 2: 기존 패턴 유지
-        if (global.turn mod 2 == 0) {
-            var _bs = 300;
-
-            if (_t < _bs) {
-                global.soul_mode = 0;
-
-                if (_t >= 30 && _t < _bs - 20 && _t % 30 == 0) {
-                    var _gc = irandom_range(global.box_top + 40, global.box_bottom - 40);
-                    var _gap2 = 52;
-
-                    var _tb = instance_create_layer(global.box_right + 30, 0, "Instances", obj_bone);
-                    _tb.is_top = true;
-                    _tb.length = max(0, (_gc - (_gap2 / 2)) - global.box_top);
-
-                    var _bb = instance_create_layer(global.box_right + 30, 0, "Instances", obj_bone);
-                    _bb.is_top = false;
-                    _bb.length = max(0, global.box_bottom - (_gc + (_gap2 / 2)));
-                }
-
-                if ((_t == 80 || _t == 160 || _t == 230) && instance_exists(obj_player)) {
-                    var _px = obj_player.x;
-                    var _bl = spawn_blaster(_px, -60, _px, 110, 270);
-                    _bl.fire_time = 40;
-                }
-            }
-            else {
-                global.soul_mode = 1;
-
-                var _bt = _t - _bs;
-
-                if (_bt < 350 && _bt % 70 == 0) {
-                    with (obj_bonefield) instance_destroy();
-                    change_gravity(irandom(3));
-                }
-
-                if (_bt < 350 && _bt % 70 == 25) {
-                    var _bf = instance_create_layer(0, 0, "Instances", obj_bonefield);
-                    _bf.dir = global.grav_dir;
-                }
-            }
-        }
-    }
-    else if (global.turn == 3) {
-        // 턴 3: 뼈 회오리 + 추적 블래스터
-        global.soul_mode = 1;
-
-        // 0~180 프레임: 중앙에서 회전형 뼈 생성
-        if (_t < 180) {
-            if (_t % 18 == 0) {
-                var _cx = (global.box_left + global.box_right) / 2;
-                var _cy = (global.box_top + global.box_bottom) / 2;
-                var _ang = (_t / 18) * 22.5;
-                var _count = 7;
-
-                for (var i = 0; i < _count; i++) {
-                    var _b = instance_create_layer(_cx, _cy, "Instances", obj_bone);
-                    _b.length = 140;
-                    _b.is_top = false;
-                    _b.image_angle = _ang + i * 45;
-                    _b.spin = 1.2 + (i * 0.05);
-                    _b.x = _cx + lengthdir_x(110, _ang + i * 45);
-                    _b.y = _cy + lengthdir_y(110, _ang + i * 45);
-                }
-            }
-        }
-
-        // 100프레임 근처마다 추적 블래스터
-        if (_t % 70 == 30 && instance_exists(obj_player)) {
-            var _p = obj_player;
-            var _bl = spawn_blaster(_p.x, _p.y - 50, _p.x, _p.y, 270);
-            _bl.fire_time = 68;
-            _bl.beam_len = 800;
-        }
-    }
-    else if (global.turn == 4) {
-        // 턴 4: 양쪽 뼈 벽 + 교차 블래스터
-        global.soul_mode = 0;
-
-        if (_t < 110) {
-            // 좌우에서 뼈 생성
-            if (_t % 18 == 0) {
-                var _left = instance_create_layer(global.box_left - 30, 0, "Instances", obj_bone);
-                _left.is_top = true;
-                _left.length = 90;
-                _left.image_xscale = 1;
-
-                var _right = instance_create_layer(global.box_right + 30, 0, "Instances", obj_bone);
-                _right.is_top = false;
-                _right.length = 90;
-                _right.image_xscale = 1;
-            }
-
-            // 중앙에서 점점 새는 블래스터
-            if (_t == 40 || _t == 80 || _t == 120) {
-                var _mid = (global.box_left + global.box_right) / 2;
-                var _bl1 = spawn_blaster(_mid - 80, global.box_top - 30, _mid - 80, global.box_bottom + 30, 90);
-                var _bl2 = spawn_blaster(_mid + 80, global.box_top - 30, _mid + 80, global.box_bottom + 30, 90);
-                _bl1.fire_time = 44;
-                _bl2.fire_time = 44;
+                var _bottom_bone = instance_create_layer(global.box_right + 30, 0, "Instances", obj_bone);
+                _bottom_bone.is_top = false;
+                _bottom_bone.length = max(0, global.box_bottom - (_wave_center + (_gap / 2)));
             }
         }
         else {
-            // 이후에는 파란 모드 + 중력 반전
-            if (_t % 55 == 0) {
-                with (obj_bonefield) instance_destroy();
-                change_gravity(irandom(3));
+            if (_t >= 40 && _t < 210 && _t % 40 == 0) {
+                var _b = instance_create_layer(global.box_right + 30, 0, "Instances", obj_bone);
+                _b.is_top = false;
+                _b.length = 30;
+            }
 
-                var _bf = instance_create_layer(0, 0, "Instances", obj_bonefield);
-                _bf.dir = global.grav_dir;
+            var _by = global.box_top + 65;
+
+            if (_t == 100) {
+                var _bl1 = spawn_blaster(-60, _by, 100, _by, 0);
+                var _bl2 = spawn_blaster(700, _by, 540, _by, 180);
+                _bl1.fire_time = 100;
+                _bl2.fire_time = 100;
             }
         }
     }
     else {
-        // 5턴 이상은 기본 패턴 반복
-        if (global.turn mod 2 == 1) {
-            if (!global.blue_drop) {
-                if (_t >= 30 && _t < 200 && _t % 5 == 0) {
-                    var _wave_center = mean(global.box_top, global.box_bottom) + sin(_t * 0.1) * 35;
-                    var _gap = 28;
-                    var _top_bone = instance_create_layer(global.box_right + 30, 0, "Instances", obj_bone);
-                    _top_bone.is_top = true;
-                    _top_bone.length = max(0, (_wave_center - (_gap / 2)) - global.box_top);
-                    var _bottom_bone = instance_create_layer(global.box_right + 30, 0, "Instances", obj_bone);
-                    _bottom_bone.is_top = false;
-                    _bottom_bone.length = max(0, global.box_bottom - (_wave_center + (_gap / 2)));
-                }
+        var _bs = 300;   // 짝수 턴 파랑 시작 프레임
+
+        // ========== 짝수 턴 전반: 빨강 - 랜덤 틈 뼈 벽 + 블래스터 ==========
+        if (_t < _bs) {
+            global.soul_mode = 0;
+
+            if (_t >= 30 && _t < _bs - 20 && _t % 30 == 0) {
+                var _gc = irandom_range(global.box_top + 40, global.box_bottom - 40);
+                var _gap2 = 52;
+
+                var _tb = instance_create_layer(global.box_right + 30, 0, "Instances", obj_bone);
+                _tb.is_top = true;
+                _tb.length = max(0, (_gc - (_gap2 / 2)) - global.box_top);
+
+                var _bb = instance_create_layer(global.box_right + 30, 0, "Instances", obj_bone);
+                _bb.is_top = false;
+                _bb.length = max(0, global.box_bottom - (_gc + (_gap2 / 2)));
+            }
+
+            if ((_t == 80 || _t == 160 || _t == 230) && instance_exists(obj_player)) {
+                var _px = obj_player.x;
+                var _bl = spawn_blaster(_px, -60, _px, 110, 270);
+                _bl.fire_time = 40;
             }
         }
+        // ========== 짝수 턴 후반: 파랑 - 70프레임 사이클 x 5 ==========
         else {
-            if (_t % 45 == 0 && instance_exists(obj_player)) {
-                var _p = obj_player;
-                var _b = spawn_blaster(_p.x, -60, _p.x, 110, 270);
-                _b.fire_time = 50;
+            global.soul_mode = 1;
+
+            var _bt = _t - _bs;
+
+            // 사이클 시작 (0, 70, 140, 210, 280): 방향을 새로 뽑고 내리찍기
+            if (_bt < 350 && _bt % 70 == 0) {
+                with (obj_bonefield) instance_destroy();
+                change_gravity(irandom(3));
+            }
+
+            // 사이클 시작 후 25프레임: 그 방향 벽에서 뼈밭 1번
+            if (_bt < 350 && _bt % 70 == 25) {
+                var _bf = instance_create_layer(0, 0, "Instances", obj_bonefield);
+                _bf.dir = global.grav_dir;
             }
         }
     }
@@ -360,4 +263,3 @@ else {
         }
     }
 }
-
